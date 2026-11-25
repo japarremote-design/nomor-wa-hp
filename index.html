@@ -60,10 +60,25 @@ async function renderAdmin(){
  if(saved){try{const d=await jsonFetch('/api/admin',{headers:{'x-admin-password':saved}});showTable(d.participants)}catch(e){sessionStorage.removeItem('adminPass')}}
 }
 function showTable(rows){
+ <button id="copyAll">Salin Semua Pesan WA</button>
  document.getElementById('login').textContent='Keluar';
  document.getElementById('login').onclick=()=>{sessionStorage.removeItem('adminPass');location.reload()};
  document.getElementById('content').innerHTML=`<div class="top"><span class="status">Total: ${rows.length} orang</span><button class="secondary" id="refresh">Muat Ulang</button></div><div class="tablewrap"><table><thead><tr><th>No Daftar</th><th>Nama Lengkap</th><th>L/P</th><th>No WA/HP</th><th>Link</th></tr></thead><tbody>${rows.map(p=>`<tr><td>${p.id}</td><td>${esc(p.name)}</td><td>${p.gender}</td><td>${p.phone?esc(p.phone):'<span class="status">Belum diisi</span>'}</td><td><button class="secondary" data-link="${esc(p.link)}">Salin Link</button></td></tr>`).join('')}</tbody></table></div><p class="status">Bagikan setiap link hanya kepada orang yang namanya sesuai.</p>`;
  document.getElementById('refresh').onclick=async()=>{try{const d=await jsonFetch('/api/admin',{headers:{'x-admin-password':sessionStorage.getItem('adminPass')}});showTable(d.participants)}catch(e){alert(e.message)}};
  document.querySelectorAll('[data-link]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.link);b.textContent='Tersalin!';setTimeout(()=>b.textContent='Salin Link',1500)}catch(e){prompt('Salin tautan ini:',b.dataset.link)}});
+ document.getElementById('copyAll').onclick = () => copyAllMessages(rows);
+}
+async function copyAllMessages(rows) {
+  const messages = rows.map(p =>
+`Silakan isi nomor WA/HP Anda pada link berikut:
+
+${p.link}
+
+Atas nama: ${p.name}
+Nomor Daftar: ${p.id}`
+  );
+
+  await navigator.clipboard.writeText(messages.join('\n\n--------------------\n\n'));
+  alert('25 pesan berhasil disalin. Silakan paste ke WhatsApp!');
 }
 </script></body></html>
