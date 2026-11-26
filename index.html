@@ -1,148 +1,84 @@
 <!doctype html>
-<html lang="id">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Pendataan Nomor WhatsApp</title>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pendataan Peserta Kewirausahaan</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#f3f5f9;color:#182230;font:15px Arial,sans-serif}
-.wrap{max-width:1100px;margin:36px auto;padding:0 16px}.card{background:white;border:1px solid #e5e9f0;border-radius:14px;padding:22px;box-shadow:0 5px 22px #172b4d0b}
-h1{font-size:24px;margin:0 0 8px}.muted{color:#667085}.top{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:18px}
-input{width:100%;padding:12px;border:1px solid #ccd3df;border-radius:8px;font-size:16px;margin:7px 0 14px}
-button,.btn{border:0;background:#155eef;color:white;padding:11px 15px;border-radius:8px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block}
-button.secondary{background:#eef4ff;color:#155eef}button:disabled{opacity:.5;cursor:not-allowed}
-table{border-collapse:collapse;width:100%;min-width:720px}th,td{text-align:left;padding:12px;border-bottom:1px solid #edf0f4}th{background:#f8fafc;color:#475467}
-.tablewrap{overflow:auto}.status{font-size:13px;color:#667085}.ok{color:#067647}.error{color:#b42318}
-.formbox{max-width:520px;margin:8vh auto}.field{margin:18px 0}.field label{font-weight:600}
-@media(max-width:600px){.card{padding:17px}.top{align-items:flex-start;flex-direction:column}h1{font-size:21px}}
-</style></head>
-<body><main class="wrap"><div id="app"></div></main>
+*{box-sizing:border-box}body{margin:0;background:#f3f5f9;color:#182230;font:15px Arial,sans-serif}.wrap{max-width:1200px;margin:30px auto;padding:0 15px}
+.card{background:#fff;border:1px solid #e5e9f0;border-radius:14px;padding:22px;box-shadow:0 5px 22px #172b4d0b}
+h1{font-size:24px;margin:0 0 8px}.muted,.hint{color:#667085}.top{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:18px}
+button,.btn{border:0;background:#155eef;color:#fff;padding:11px 14px;border-radius:8px;font-weight:600;cursor:pointer}button.secondary{background:#eef4ff;color:#155eef}button.danger{background:#b42318}
+input,textarea,select{width:100%;padding:11px;border:1px solid #ccd3df;border-radius:8px;font:inherit;margin:6px 0 13px}label{font-weight:600;display:block;margin-top:9px}
+.tablewrap{overflow:auto}table{border-collapse:collapse;width:100%;min-width:1050px}th,td{text-align:left;padding:11px;border-bottom:1px solid #edf0f4;vertical-align:top}th{background:#f8fafc;color:#475467}
+.status{font-size:13px;color:#667085}.ok{color:#067647}.error{color:#b42318}.formbox{max-width:650px;margin:5vh auto}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.actions{display:flex;gap:8px;flex-wrap:wrap}
+dialog{border:0;border-radius:14px;max-width:620px;width:calc(100% - 24px);padding:22px;box-shadow:0 15px 50px #0003}dialog::backdrop{background:#10182899}
+@media(max-width:650px){.card{padding:16px}.top{align-items:flex-start;flex-direction:column}.grid{grid-template-columns:1fr}h1{font-size:21px}}
+</style></head><body><main class="wrap"><div id="app"></div></main>
+<dialog id="editDialog"><form id="editForm"><h2 id="dialogTitle">Edit Peserta</h2><input type="hidden" id="editId">
+<label>Nama Lengkap</label><input id="editName" required>
+<div class="grid"><div><label>Jenis Kelamin</label><select id="editGender"><option value="L">Laki-laki</option><option value="P">Perempuan</option></select></div><div><label>No HP/WhatsApp</label><input id="editPhone"></div></div>
+<label>Alamat</label><textarea id="editAddress" rows="2"></textarea>
+<label>Kelas Kewirausahaan</label><input id="editClass" placeholder="Isi kelas kewirausahaan">
+<label>Keterangan Siap Kerja</label><select id="editReady"><option value="">Belum diisi</option><option value="Ya">Ya</option><option value="Tidak">Tidak</option></select>
+<div class="actions"><button type="submit">Simpan Data</button><button type="button" class="secondary" onclick="document.getElementById('editDialog').close()">Batal</button></div><p id="editMsg" class="status"></p></form></dialog>
 <script>
-const app=document.getElementById('app');
-const params=new URLSearchParams(location.search);
-const id=params.get('id'), key=params.get('key');
+const app=document.getElementById('app'),params=new URLSearchParams(location.search),id=params.get('id'),key=params.get('key');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-async function jsonFetch(url,opts={}){const r=await fetch(url,opts);const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||'Terjadi kesalahan');return d}
-if(id){
-  renderPerson();
-}else{
-  renderAdmin();
-}
+async function api(url,opts={}){const r=await fetch(url,opts),d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||'Terjadi kesalahan');return d}
+const adminHeaders=()=>({'Content-Type':'application/json','x-admin-password':sessionStorage.getItem('adminPass')||''});
+if(id&&key)renderPerson();else renderAdmin();
+
 async function renderPerson(){
-  app.innerHTML='<section class="card formbox"><p class="muted">Memuat formulir...</p></section>';
-  try{
-    const d=await jsonFetch('/api/person?id='+encodeURIComponent(id));
-    const p=d.person;
-    app.innerHTML=`<section class="card formbox"><h1>Formulir Nomor WhatsApp/HP</h1><p class="muted">Silakan isi nomor WhatsApp/HP Anda dengan benar.</p>
-    <div class="field"><label>No Daftar</label><div>${p.id}</div></div>
-    <div class="field"><label>Nama Lengkap</label><div>${esc(p.name)}</div></div>
-    <div class="field"><label>Jenis Kelamin</label><div>${p.gender==='L'?'Laki-laki':'Perempuan'} (${p.gender})</div></div>
-    <form id="phoneForm"><div class="field"><label for="phone">No WhatsApp/HP</label><input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Contoh: 081234567890" value="${esc(p.phone)}" required minlength="8" maxlength="20"></div>
-    <button id="save" type="submit">Simpan Nomor</button> <span id="msg" class="status"></span></form></section>`;
-    document.getElementById('phoneForm').addEventListener('submit',async e=>{
-      e.preventDefault();const phone=document.getElementById('phone').value.trim();const btn=document.getElementById('save'),msg=document.getElementById('msg');
-      if(!/^[0-9+\-\s()]{8,20}$/.test(phone)){msg.textContent='Format nomor tidak valid.';msg.className='status error';return}
-      btn.disabled=true;msg.textContent='Menyimpan...';
-      try{await jsonFetch('/api/person',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:Number(id),key,phone})});msg.textContent='Nomor berhasil disimpan. Terima kasih!';msg.className='status ok'}
-      catch(err){msg.textContent=err.message;msg.className='status error'}
-      finally{btn.disabled=false}
-    });
-  }catch(e){app.innerHTML=`<section class="card formbox"><h1>Link tidak valid</h1><p class="error">${esc(e.message)}</p></section>`}
+ app.innerHTML='<section class="card formbox">Memuat formulir...</section>';
+ try{
+  const d=await api(`/api/person?id=${encodeURIComponent(id)}&key=${encodeURIComponent(key)}`),p=d.person;
+  app.innerHTML=`<section class="card formbox"><h1>Formulir Data Peserta</h1><p class="muted">Periksa data berikut dan lengkapi nomor HP, alamat, serta unggah KTP.</p>
+  <div class="grid"><div><label>No Daftar</label>${p.id}</div><div><label>Jenis Kelamin</label>${p.gender}</div></div><label>Nama Lengkap</label><div>${esc(p.name)}</div>
+  <form id="personForm"><label>Nomor HP/WhatsApp</label><input id="phone" type="tel" required value="${esc(p.phone)}" placeholder="08xxxxxxxxxx">
+  <label>Alamat</label><textarea id="address" rows="3" required>${esc(p.address)}</textarea>
+  <label>Unggah KTP (JPG, PNG, atau PDF; maksimal 5 MB)</label><input id="ktp" type="file" accept="image/jpeg,image/png,application/pdf">
+  <p class="hint">${p.has_ktp?'KTP sudah pernah diunggah. Unggah ulang hanya jika ingin mengganti.':'KTP belum diunggah.'}</p>
+  <button id="personSave" type="submit">Simpan Data dan KTP</button><p id="personMsg" class="status"></p></form></section>`;
+  document.getElementById('personForm').onsubmit=async e=>{
+   e.preventDefault();const btn=document.getElementById('personSave'),msg=document.getElementById('personMsg'),file=document.getElementById('ktp').files[0];
+   if(file&&file.size>5*1024*1024){msg.textContent='Ukuran file maksimal 5 MB.';msg.className='status error';return}
+   btn.disabled=true;msg.textContent='Menyimpan...';
+   try{
+    const body={id:Number(id),key,phone:document.getElementById('phone').value,address:document.getElementById('address').value};
+    if(file){body.ktpName=file.name;body.ktpType=file.type;body.ktpBase64=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
+    await api('/api/person',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    msg.textContent='Data berhasil disimpan. Terima kasih!';msg.className='status ok';
+   }catch(err){msg.textContent=err.message;msg.className='status error'}finally{btn.disabled=false}
+  };
+ }catch(e){app.innerHTML=`<section class="card formbox"><h1>Link tidak valid</h1><p class="error">${esc(e.message)}</p></section>`}
 }
+
 async function renderAdmin(){
- app.innerHTML=`<section class="card"><div class="top"><div><h1>Pendataan Nomor WhatsApp/HP</h1><p class="muted">Daftar 25 peserta dan tautan pengisian masing-masing.</p></div><button id="login">Login Admin</button></div><div id="content"><p class="muted">Login untuk melihat daftar dan membuat tautan pribadi.</p></div></section>`;
- document.getElementById('login').onclick=async()=>{
-   const password=prompt('Masukkan password admin:');if(!password)return;
-   try{const d=await jsonFetch('/api/admin',{headers:{'x-admin-password':password}});
-     sessionStorage.setItem('adminPass',password);showTable(d.participants);
-   }catch(e){alert(e.message)}
- };
- const saved=sessionStorage.getItem('adminPass');
- if(saved){try{const d=await jsonFetch('/api/admin',{headers:{'x-admin-password':saved}});showTable(d.participants)}catch(e){sessionStorage.removeItem('adminPass')}}
+ app.innerHTML=`<section class="card"><div class="top"><div><h1>Administrasi Peserta Kewirausahaan</h1><p class="muted">Kelola data peserta, tautan pribadi, dan dokumen KTP.</p></div><button id="login">Login Admin</button></div><div id="content"><p class="muted">Login untuk mengelola data peserta.</p></div></section>`;
+ document.getElementById('login').onclick=async()=>{const pw=prompt('Masukkan password admin:');if(!pw)return;sessionStorage.setItem('adminPass',pw);try{const d=await api('/api/admin',{headers:{'x-admin-password':pw}});showTable(d.participants)}catch(e){sessionStorage.removeItem('adminPass');alert(e.message)}};
+ const pw=sessionStorage.getItem('adminPass');if(pw){try{const d=await api('/api/admin',{headers:{'x-admin-password':pw}});showTable(d.participants)}catch(e){sessionStorage.removeItem('adminPass')}}
 }
+async function reloadRows(){const d=await api('/api/admin',{headers:{'x-admin-password':sessionStorage.getItem('adminPass')}});showTable(d.participants)}
 function showTable(rows){
-  document.getElementById('login').textContent='Keluar';
-  document.getElementById('login').onclick=()=>{
-    sessionStorage.removeItem('adminPass');
-    location.reload();
-  };
-
-  document.getElementById('content').innerHTML=`
-    <div class="top">
-      <span class="status">Total: ${rows.length} orang</span>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button id="copyAll">Salin Semua Pesan WA</button>
-        <button class="secondary" id="refresh">Muat Ulang</button>
-      </div>
-    </div>
-
-    <div class="tablewrap">
-      <table>
-        <thead>
-          <tr>
-            <th>No Daftar</th>
-            <th>Nama Lengkap</th>
-            <th>L/P</th>
-            <th>No WA/HP</th>
-            <th>Link</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map(p=>`
-            <tr>
-              <td>${p.id}</td>
-              <td>${esc(p.name)}</td>
-              <td>${p.gender}</td>
-              <td>${p.phone?esc(p.phone):'<span class="status">Belum diisi</span>'}</td>
-              <td><button class="secondary" data-link="${esc(p.link)}">Salin Link</button></td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>
-    <p class="status">Bagikan setiap link hanya kepada orang yang namanya sesuai.</p>
-  `;
-
-  document.getElementById('copyAll').onclick=()=>copyAllMessages(rows);
-
-  document.getElementById('refresh').onclick=async()=>{
-    try{
-      const d=await jsonFetch('/api/admin',{
-        headers:{'x-admin-password':sessionStorage.getItem('adminPass')}
-      });
-      showTable(d.participants);
-    }catch(e){alert(e.message)}
-  };
-
-  document.querySelectorAll('[data-link]').forEach(b=>{
-    b.onclick=async()=>{
-      try{
-        await navigator.clipboard.writeText(b.dataset.link);
-        b.textContent='Tersalin!';
-        setTimeout(()=>b.textContent='Salin Link',1500);
-      }catch(e){
-        prompt('Salin tautan ini:',b.dataset.link);
-      }
-    };
-  });
+ document.getElementById('login').textContent='Keluar';document.getElementById('login').onclick=()=>{sessionStorage.removeItem('adminPass');location.reload()};
+ document.getElementById('content').innerHTML=`<div class="top"><span class="status">Total ${rows.length} peserta</span><div class="actions"><button id="add">Tambah Peserta</button><button id="copyAll">Salin Semua Pesan WA</button><button class="secondary" id="refresh">Muat Ulang</button></div></div>
+ <div class="tablewrap"><table><thead><tr><th>No</th><th>Nama</th><th>L/P</th><th>Nomor HP</th><th>Alamat</th><th>Kelas Kewirausahaan</th><th>Siap Kerja</th><th>KTP</th><th>Aksi</th></tr></thead><tbody>
+ ${rows.map(p=>`<tr><td>${p.id}</td><td>${esc(p.name)}</td><td>${p.gender}</td><td>${esc(p.phone)||'—'}</td><td>${esc(p.address)||'—'}</td><td>${esc(p.entrepreneurship_class)||'—'}</td><td>${esc(p.ready_to_work)||'—'}</td><td>${p.has_ktp?`<button class="secondary" data-ktp="${p.id}">Lihat KTP</button>`:'Belum ada'}</td><td><div class="actions"><button class="secondary" data-edit="${p.id}">Edit</button><button class="secondary" data-link="${esc(p.link)}">Salin Link</button></div></td></tr>`).join('')}
+ </tbody></table></div><p class="hint">Dokumen KTP tersimpan di bucket privat Supabase, bukan di repository GitHub.</p>`;
+ document.getElementById('refresh').onclick=()=>reloadRows().catch(e=>alert(e.message));
+ document.getElementById('add').onclick=async()=>{const name=prompt('Nama peserta baru:');if(!name)return;try{await api('/api/admin',{method:'POST',headers:adminHeaders(),body:JSON.stringify({action:'add',name})});await reloadRows()}catch(e){alert(e.message)}};
+ document.getElementById('copyAll').onclick=async()=>{const all=rows.map(p=>`Silakan lengkapi data dan unggah KTP melalui link berikut:\n\n${p.link}\n\nAtas nama: ${p.name}\nNomor Daftar: ${p.id}`).join('\n\n--------------------\n\n');try{await navigator.clipboard.writeText(all);alert(`${rows.length} pesan berhasil disalin.`)}catch(e){prompt('Salin semua pesan:',all)}};
+ document.querySelectorAll('[data-link]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.link);b.textContent='Tersalin'}catch(e){prompt('Salin link:',b.dataset.link)}});
+ document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openEdit(rows.find(p=>p.id===Number(b.dataset.edit))));
+ document.querySelectorAll('[data-ktp]').forEach(b=>b.onclick=async()=>{try{const d=await api(`/api/admin?id=${b.dataset.ktp}`,{method:'PUT',headers:{'x-admin-password':sessionStorage.getItem('adminPass')}});window.open(d.url,'_blank','noopener')}catch(e){alert(e.message)}});
 }
-
-async function copyAllMessages(rows){
-  const messages=rows.map(p=>
-`Silakan isi nomor WA/HP Anda pada link berikut:
-
-${p.link}
-
-Atas nama: ${p.name}
-Nomor Daftar: ${p.id}`
-  );
-
-  const all=messages.join('\n\n--------------------\n\n');
-
-  try{
-    await navigator.clipboard.writeText(all);
-    alert(`${rows.length} pesan berhasil disalin! Silakan paste ke WhatsApp.`);
-  }catch(e){
-    prompt('Salin seluruh pesan berikut:',all);
-  }
+function openEdit(p){
+ document.getElementById('editId').value=p.id;document.getElementById('editName').value=p.name;document.getElementById('editGender').value=p.gender;
+ document.getElementById('editPhone').value=p.phone;document.getElementById('editAddress').value=p.address;
+ document.getElementById('editClass').value=p.entrepreneurship_class;document.getElementById('editReady').value=p.ready_to_work;
+ document.getElementById('editMsg').textContent='';document.getElementById('editDialog').showModal();
 }
+document.getElementById('editForm').onsubmit=async e=>{
+ e.preventDefault();const id=Number(document.getElementById('editId').value),msg=document.getElementById('editMsg');
+ const body={action:'save',id,name:document.getElementById('editName').value,gender:document.getElementById('editGender').value,phone:document.getElementById('editPhone').value,address:document.getElementById('editAddress').value,entrepreneurship_class:document.getElementById('editClass').value,ready_to_work:document.getElementById('editReady').value};
+ try{await api('/api/admin',{method:'POST',headers:adminHeaders(),body:JSON.stringify(body)});document.getElementById('editDialog').close();await reloadRows()}catch(e){msg.textContent=e.message;msg.className='status error'}
+};
 </script></body></html>

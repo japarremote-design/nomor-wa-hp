@@ -1,36 +1,40 @@
-# Pendataan Nomor WhatsApp/HP
+# Pendataan Peserta Kewirausahaan
 
-Aplikasi sederhana untuk 25 peserta. Setiap peserta mendapat tautan pribadi untuk mengisi nomor HP. Data disimpan pada `data/participants.json` di repository GitHub melalui GitHub Contents API.
+## Isi aplikasi
+- Admin dapat login, mengedit data peserta, menambah peserta, melihat data, membuat tautan pribadi, dan menyalin pesan WhatsApp massal.
+- Peserta membuka tautan pribadi untuk melengkapi nomor HP dan alamat serta mengunggah KTP.
+- Data peserta disimpan di `data/participants.json` pada GitHub.
+- File KTP disimpan di Supabase Storage bucket privat `ktp-private`. File tidak disimpan di GitHub.
 
-## 1. Upload ke GitHub
-Buat repository baru, misalnya `pendataan-wa`, lalu upload seluruh isi folder proyek ini (bukan folder induknya).
+## Deploy
+1. Buat repository GitHub **private** dan upload seluruh isi folder proyek ini.
+2. Buat Supabase project.
+3. Di Supabase Storage, buat bucket bernama `ktp-private` dan pastikan **Public bucket = OFF**.
+4. Buat GitHub Fine-grained Personal Access Token untuk repository ini dengan permission **Contents: Read and write**.
+5. Import repository ke Vercel.
+6. Tambahkan Environment Variables berikut di Vercel (Production, Preview jika diperlukan):
+   - `GITHUB_OWNER` = username/organisasi GitHub
+   - `GITHUB_REPO` = nama repository
+   - `GITHUB_BRANCH` = `main` (sesuaikan branch)
+   - `GITHUB_TOKEN` = token GitHub
+   - `ADMIN_PASSWORD` = password admin yang kuat
+   - `SUPABASE_URL` = Project URL dari Supabase
+   - `SUPABASE_SERVICE_ROLE_KEY` = service_role secret dari Supabase (JANGAN pernah masukkan ke frontend/GitHub)
+7. Redeploy Vercel setelah mengisi environment variables.
 
-## 2. Buat GitHub token
-Buat Personal Access Token (Fine-grained) untuk repository tersebut dengan izin **Contents: Read and write**. Jangan masukkan token ke file proyek atau frontend.
+## Cara pakai
+- Buka domain Vercel tanpa query, login admin.
+- Klik Edit untuk melengkapi nama, L/P, nomor HP, alamat, kelas kewirausahaan, dan status siap kerja.
+- Klik Salin Link untuk mengirim link khusus per peserta. Tombol Salin Semua Pesan WA menyalin seluruh pesan.
+- Peserta membuka link pribadi, melengkapi nomor HP/alamat, dan mengunggah KTP.
+- Admin klik Muat Ulang. Klik Lihat KTP untuk membuka tautan sementara (berlaku 60 detik).
 
-## 3. Deploy ke Vercel
-Import repository GitHub ke Vercel. Tambahkan Environment Variables berikut pada Project Settings > Environment Variables:
-
-- `GITHUB_OWNER` = username/organisasi pemilik repository
-- `GITHUB_REPO` = nama repository
-- `GITHUB_BRANCH` = `main` (sesuaikan nama branch)
-- `GITHUB_TOKEN` = token GitHub dengan akses Contents read/write
-- `ADMIN_PASSWORD` = password rahasia untuk halaman admin
-
-Lalu deploy / redeploy.
-
-## 4. Cara menggunakan
-1. Buka domain Vercel tanpa query, misalnya `https://nama-app.vercel.app`.
-2. Klik **Login Admin**, masukkan `ADMIN_PASSWORD`.
-3. Tabel 25 peserta tampil. Klik **Salin Link** pada nama masing-masing.
-4. Kirim link itu kepada peserta yang bersangkutan.
-5. Peserta mengisi nomor WhatsApp/HP lalu klik **Simpan Nomor**.
-6. Admin klik **Muat Ulang** untuk melihat data terbaru.
-
-## Catatan keamanan
-- Jangan membagikan password admin.
-- Link pribadi berisi kunci acak; kirim hanya kepada orang yang bersangkutan.
-- Endpoint detail peserta hanya menampilkan nama, nomor daftar, jenis kelamin, dan nomor HP. Hanya link dengan kunci yang cocok yang dapat mengubah nomor.
-- Repository dan file JSON dapat dibuat private. Vercel tetap dapat mengakses GitHub API memakai token.
-- Jika beberapa orang menyimpan pada saat hampir bersamaan, GitHub dapat menolak salah satu update karena konflik SHA; peserta/admin dapat mencoba ulang.
-- Untuk data pribadi, batasi akses repository dan token GitHub. Rotasi token jika pernah terekspos.
+## Catatan privasi dan batasan
+- Data KTP adalah data pribadi berisiko tinggi. Kumpulkan hanya bila benar-benar diperlukan, batasi admin yang bisa mengakses, dan hapus berkas setelah tujuan administrasi selesai sesuai kebijakan retensi.
+- Jangan pernah membuat bucket KTP menjadi public.
+- Jangan menyimpan `SUPABASE_SERVICE_ROLE_KEY` atau `GITHUB_TOKEN` di `index.html`, file JSON, atau variabel `NEXT_PUBLIC_*`.
+- Repository GitHub sebaiknya private karena JSON berisi nomor HP, alamat, dan kunci link pribadi.
+- Link peserta adalah rahasia akses untuk peserta tersebut; jangan kirim ke grup umum.
+- Implementasi ini menggunakan password admin bersama melalui environment variable. Untuk penggunaan institusional/produksi dengan banyak admin, pertimbangkan autentikasi per akun, audit log, backup, dan kontrol akses lebih kuat.
+- Ukuran KTP dibatasi 5 MB dan tipe file JPG, PNG, PDF.
+- Jika update JSON bersamaan mengalami konflik GitHub SHA, muat ulang data dan coba simpan kembali.
